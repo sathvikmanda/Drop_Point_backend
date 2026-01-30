@@ -44,191 +44,6 @@ mongoose
 
 app.use(cors()); // allow Flutter to talk
 app.use(express.json()); 
-app.post("/api/otp/send", async (req, res) => {
-  try {
-    const phoneRaw = (req.body.phone || "").trim();
-
-    if (!/^\d{10}$/.test(phoneRaw)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid phone number",
-      });
-    }
-
-    const phone = `+91${phoneRaw}`;
-
-    if (!client || !VERIFY_SID) {
-      console.log(`[DEV] SMS OTP send requested for ${phone}`);
-      return res.json({
-        success: true,
-        message: "OTP sent (dev mode)",
-      });
-    }
-
-    try {
-      // 📩 Send SMS OTP ONLY
-      await client.verify.v2.services(VERIFY_SID).verifications.create({
-        to: phone,
-        channel: "sms",
-      });
-
-      console.log("✅ OTP sent via SMS to", phone);
-    } catch (twErr) {
-      console.error("❌ Twilio SMS send OTP error:", twErr);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to send OTP via SMS",
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: "OTP sent via SMS",
-    });
-
-  } catch (err) {
-    console.error("❌ /api/otp/send error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
-});
-
-app.post("/api/otp/resend-whatsapp", async (req, res) => {
-  try {
-    const phoneRaw = (req.body.phone || "").trim();
-
-    if (!/^\d{10}$/.test(phoneRaw)) {
-      return res.status(400).json({
-        success: false,
-        message: "Invalid phone number",
-      });
-    }
-
-    const phone = `+91${phoneRaw}`;
-
-    if (!client || !WHATSAPP_VERIFY_SID) {
-      console.log(`[DEV] WhatsApp OTP send requested for ${phone}`);
-      return res.json({
-        success: true,
-        message: "OTP sent on WhatsApp (dev mode)",
-      });
-    }
-
-    try {
-      // 💬 Send WhatsApp OTP
-      await client.verify.v2.services(WHATSAPP_VERIFY_SID).verifications.create({
-        to: phone,
-        channel: "whatsapp",
-      });
-
-      console.log("✅ OTP sent via WhatsApp to", phone);
-    } catch (twErr) {
-      console.error("❌ Twilio WhatsApp send OTP error:", twErr);
-      return res.status(500).json({
-        success: false,
-        message: "Failed to send OTP via WhatsApp",
-      });
-    }
-
-    return res.json({
-      success: true,
-      message: "OTP sent via WhatsApp",
-    });
-
-  } catch (err) {
-    console.error("❌ /api/otp/resend-whatsapp error:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Server error",
-    });
-  }
-});
-
-
-app.post("/otp/verify", async (req, res) => {
-  try {
-    const phoneRaw = (req.body.phone || "").trim();
-    const code = String(req.body.otp || "").trim();
-
-    if (!phoneRaw || !code) {
-      return res.status(400).json({
-        success: false,
-        message: "Phone and OTP required",
-      });
-    }
-
-    const phone = phoneRaw.startsWith("+91") ? phoneRaw : "+91" + phoneRaw;
-
-    if (!client) {
-      console.log("🔥 DEV MODE OTP AUTO-ACCEPT");
-      return res.json({
-        success: true,
-        message: "OTP accepted (dev mode)",
-      });
-    }
-
-    let smsResult = null;
-    let waResult = null;
-
-    // 1️⃣ Try SMS Verify Service
-    try {
-      smsResult = await client.verify.v2
-        .services(VERIFY_SID)
-        .verificationChecks.create({
-          to: phone,
-          code: code,
-        });
-    } catch (e) {
-      console.log("SMS verify failed");
-    }
-
-    if (smsResult && smsResult.status === "approved") {
-      return res.json({
-        success: true,
-        message: "OTP verified via SMS",
-      });
-    }
-
-    // 2️⃣ Try WhatsApp Verify Service
-    try {
-      waResult = await client.verify.v2
-        .services(WHATSAPP_VERIFY_SID)
-        .verificationChecks.create({
-          to: phone,
-          code: code,
-        });
-    } catch (e) {
-      console.log("WhatsApp verify failed");
-    }
-
-    if (waResult && waResult.status === "approved") {
-      return res.json({
-        success: true,
-        message: "OTP verified via WhatsApp",
-      });
-    }
-
-    // ❌ If both failed
-    return res.status(400).json({
-      success: false,
-      message: "Invalid OTP",
-    });
-
-  } catch (err) {
-    console.error("❌ VERIFY ERROR:", err);
-    return res.status(500).json({
-      success: false,
-      message: "Verification failed",
-    });
-  }
-});
-
-// const Otp = require("./models/Otp.js");
-// const { GenerateOtp, hashOtp } = require("./utils/otp");
-
-
 // app.post("/api/otp/send", async (req, res) => {
 //   try {
 //     const phoneRaw = (req.body.phone || "").trim();
@@ -240,28 +55,31 @@ app.post("/otp/verify", async (req, res) => {
 //       });
 //     }
 
-//     const phone = phoneRaw;
+//     const phone = `+91${phoneRaw}`;
 
-//     // 🔁 Clear old OTP
-//     await Otp.deleteMany({ phone });
+//     if (!client || !VERIFY_SID) {
+//       console.log(`[DEV] SMS OTP send requested for ${phone}`);
+//       return res.json({
+//         success: true,
+//         message: "OTP sent (dev mode)",
+//       });
+//     }
 
-//     // 🔢 Generate OTP
-//     const otp = GenerateOtp();
-//     const otpHash = hashOtp(otp);
+//     try {
+//       // 📩 Send SMS OTP ONLY
+//       await client.verify.v2.services(VERIFY_SID).verifications.create({
+//         to: phone,
+//         channel: "sms",
+//       });
 
-//     await Otp.create({
-//       phone,
-//       otpHash,
-//       expiresAt: new Date(Date.now() + 5 * 60 * 1000),
-//       resendCount: 0,
-//       lastSentAt: new Date(),
-//     });
-
-//     // 📩 Send SMS (STPL)
-//     const OTPmsg =`Your Drop Point verification code is ${otp}. Do not share this OTP with anyone. Valid for ${5} minutes. - DROPPOINT`;
-//     sendSMS(phone, OTPmsg);
-
-//     console.log("✅ SMS OTP sent (STPL):", otp); // dev only
+//       console.log("✅ OTP sent via SMS to", phone);
+//     } catch (twErr) {
+//       console.error("❌ Twilio SMS send OTP error:", twErr);
+//       return res.status(500).json({
+//         success: false,
+//         message: "Failed to send OTP via SMS",
+//       });
+//     }
 
 //     return res.json({
 //       success: true,
@@ -277,7 +95,6 @@ app.post("/otp/verify", async (req, res) => {
 //   }
 // });
 
-
 // app.post("/api/otp/resend-whatsapp", async (req, res) => {
 //   try {
 //     const phoneRaw = (req.body.phone || "").trim();
@@ -292,21 +109,28 @@ app.post("/otp/verify", async (req, res) => {
 //     const phone = `+91${phoneRaw}`;
 
 //     if (!client || !WHATSAPP_VERIFY_SID) {
-//       console.log(`[DEV] WhatsApp OTP requested for ${phone}`);
+//       console.log(`[DEV] WhatsApp OTP send requested for ${phone}`);
 //       return res.json({
 //         success: true,
-//         message: "OTP sent via WhatsApp (dev mode)",
+//         message: "OTP sent on WhatsApp (dev mode)",
 //       });
 //     }
 
-//     await client.verify.v2
-//       .services(WHATSAPP_VERIFY_SID)
-//       .verifications.create({
+//     try {
+//       // 💬 Send WhatsApp OTP
+//       await client.verify.v2.services(WHATSAPP_VERIFY_SID).verifications.create({
 //         to: phone,
 //         channel: "whatsapp",
 //       });
 
-//     console.log("✅ WhatsApp OTP sent via Twilio to", phone);
+//       console.log("✅ OTP sent via WhatsApp to", phone);
+//     } catch (twErr) {
+//       console.error("❌ Twilio WhatsApp send OTP error:", twErr);
+//       return res.status(500).json({
+//         success: false,
+//         message: "Failed to send OTP via WhatsApp",
+//       });
+//     }
 
 //     return res.json({
 //       success: true,
@@ -314,65 +138,82 @@ app.post("/otp/verify", async (req, res) => {
 //     });
 
 //   } catch (err) {
-//     console.error("❌ WhatsApp resend error:", err);
+//     console.error("❌ /api/otp/resend-whatsapp error:", err);
 //     return res.status(500).json({
 //       success: false,
-//       message: "Failed to send WhatsApp OTP",
+//       message: "Server error",
 //     });
 //   }
 // });
 
+
 // app.post("/otp/verify", async (req, res) => {
 //   try {
 //     const phoneRaw = (req.body.phone || "").trim();
-//     const otp = String(req.body.otp || "").trim();
+//     const code = String(req.body.otp || "").trim();
 
-//     if (!phoneRaw || !otp) {
+//     if (!phoneRaw || !code) {
 //       return res.status(400).json({
 //         success: false,
 //         message: "Phone and OTP required",
 //       });
 //     }
 
-//     const phone = phoneRaw.replace("+91", "");
+//     const phone = phoneRaw.startsWith("+91") ? phoneRaw : "+91" + phoneRaw;
 
-//     // 1️⃣ STPL VERIFY (SMS)
-//     const record = await Otp.findOne({ phone });
+//     if (!client) {
+//       console.log("🔥 DEV MODE OTP AUTO-ACCEPT");
+//       return res.json({
+//         success: true,
+//         message: "OTP accepted (dev mode)",
+//       });
+//     }
 
-//     if (record && record.expiresAt > new Date()) {
-//       if (hashOtp(otp) === record.otpHash) {
-//         await Otp.deleteMany({ phone });
-//         return res.json({
-//           success: true,
-//           message: "OTP verified via SMS",
+//     let smsResult = null;
+//     let waResult = null;
+
+//     // 1️⃣ Try SMS Verify Service
+//     try {
+//       smsResult = await client.verify.v2
+//         .services(VERIFY_SID)
+//         .verificationChecks.create({
+//           to: phone,
+//           code: code,
 //         });
-//       }
+//     } catch (e) {
+//       console.log("SMS verify failed");
 //     }
 
-//     // 2️⃣ TWILIO VERIFY (WhatsApp fallback)
-//     if (client && WHATSAPP_VERIFY_SID) {
-//       try {
-//         const waResult = await client.verify.v2
-//           .services(WHATSAPP_VERIFY_SID)
-//           .verificationChecks.create({
-//             to: `+91${phone}`,
-//             code: otp,
-//           });
-
-//         if (waResult.status === "approved") {
-//           return res.json({
-//             success: true,
-//             message: "OTP verified via WhatsApp",
-//           });
-//         }
-//       } catch (e) {
-//         console.log("WhatsApp verify failed");
-//       }
+//     if (smsResult && smsResult.status === "approved") {
+//       return res.json({
+//         success: true,
+//         message: "OTP verified via SMS",
+//       });
 //     }
 
+//     // 2️⃣ Try WhatsApp Verify Service
+//     try {
+//       waResult = await client.verify.v2
+//         .services(WHATSAPP_VERIFY_SID)
+//         .verificationChecks.create({
+//           to: phone,
+//           code: code,
+//         });
+//     } catch (e) {
+//       console.log("WhatsApp verify failed");
+//     }
+
+//     if (waResult && waResult.status === "approved") {
+//       return res.json({
+//         success: true,
+//         message: "OTP verified via WhatsApp",
+//       });
+//     }
+
+//     // ❌ If both failed
 //     return res.status(400).json({
 //       success: false,
-//       message: "Invalid or expired OTP",
+//       message: "Invalid OTP",
 //     });
 
 //   } catch (err) {
@@ -383,6 +224,165 @@ app.post("/otp/verify", async (req, res) => {
 //     });
 //   }
 // });
+
+const Otp = require("./models/Otp.js");
+const { GenerateOtp, hashOtp } = require("./utils/otp");
+
+
+app.post("/api/otp/send", async (req, res) => {
+  try {
+    const phoneRaw = (req.body.phone || "").trim();
+
+    if (!/^\d{10}$/.test(phoneRaw)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number",
+      });
+    }
+
+    const phone = phoneRaw;
+
+    // 🔁 Clear old OTP
+    await Otp.deleteMany({ phone });
+
+    // 🔢 Generate OTP
+    const otp = GenerateOtp();
+    const otpHash = hashOtp(otp);
+
+    await Otp.create({
+      phone,
+      otpHash,
+      expiresAt: new Date(Date.now() + 5 * 60 * 1000),
+      resendCount: 0,
+      lastSentAt: new Date(),
+    });
+
+    // 📩 Send SMS (STPL)
+    const OTPmsg =`Your Drop Point verification code is ${otp}. Do not share this OTP with anyone. Valid for ${5} minutes. - DROPPOINT`;
+    sendSMS(phone, OTPmsg);
+
+    console.log("✅ SMS OTP sent (STPL):", otp); // dev only
+
+    return res.json({
+      success: true,
+      message: "OTP sent via SMS",
+    });
+
+  } catch (err) {
+    console.error("❌ /api/otp/send error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Server error",
+    });
+  }
+});
+
+
+app.post("/api/otp/resend-whatsapp", async (req, res) => {
+  try {
+    const phoneRaw = (req.body.phone || "").trim();
+
+    if (!/^\d{10}$/.test(phoneRaw)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid phone number",
+      });
+    }
+
+    const phone = `+91${phoneRaw}`;
+
+    if (!client || !WHATSAPP_VERIFY_SID) {
+      console.log(`[DEV] WhatsApp OTP requested for ${phone}`);
+      return res.json({
+        success: true,
+        message: "OTP sent via WhatsApp (dev mode)",
+      });
+    }
+
+    await client.verify.v2
+      .services(WHATSAPP_VERIFY_SID)
+      .verifications.create({
+        to: phone,
+        channel: "whatsapp",
+      });
+
+    console.log("✅ WhatsApp OTP sent via Twilio to", phone);
+
+    return res.json({
+      success: true,
+      message: "OTP sent via WhatsApp",
+    });
+
+  } catch (err) {
+    console.error("❌ WhatsApp resend error:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Failed to send WhatsApp OTP",
+    });
+  }
+});
+
+app.post("/otp/verify", async (req, res) => {
+  try {
+    const phoneRaw = (req.body.phone || "").trim();
+    const otp = String(req.body.otp || "").trim();
+
+    if (!phoneRaw || !otp) {
+      return res.status(400).json({
+        success: false,
+        message: "Phone and OTP required",
+      });
+    }
+
+    const phone = phoneRaw.replace("+91", "");
+
+    // 1️⃣ STPL VERIFY (SMS)
+    const record = await Otp.findOne({ phone });
+
+    if (record && record.expiresAt > new Date()) {
+      if (hashOtp(otp) === record.otpHash) {
+        await Otp.deleteMany({ phone });
+        return res.json({
+          success: true,
+          message: "OTP verified via SMS",
+        });
+      }
+    }
+
+    // 2️⃣ TWILIO VERIFY (WhatsApp fallback)
+    if (client && WHATSAPP_VERIFY_SID) {
+      try {
+        const waResult = await client.verify.v2
+          .services(WHATSAPP_VERIFY_SID)
+          .verificationChecks.create({
+            to: `+91${phone}`,
+            code: otp,
+          });
+
+        if (waResult.status === "approved") {
+          return res.json({
+            success: true,
+            message: "OTP verified via WhatsApp",
+          });
+        }
+      } catch (e) {
+        console.log("WhatsApp verify failed");
+      }
+    }
+
+    return res.status(400).json({
+      success: false,
+      message: "Invalid or expired OTP",
+    });
+
+  } catch (err) {
+    console.error("❌ VERIFY ERROR:", err);
+    return res.status(500).json({
+      success: false,
+      message: "Verification failed",
+    });
+  }
+});
 
 
 
